@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Top 10 Spotify Songs</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #fff;
+      padding: 2rem;
+    }
+    h1 {
+      color: #1DB954;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: #1e1e1e;
+      margin: 0.5rem 0;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+    #login {
+      background-color: #1DB954;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Deine Top 10 Spotify Tracks</h1>
+  <div id="content">
+    <button id="login">Mit Spotify einloggen</button>
+  </div>
+
+  <script>
+    const clientId = 'DEINE_CLIENT_ID_HIER'; // <- Ersetze mit deiner echten Client ID
+    const redirectUri = 'https://DEIN-GITHUB-USERNAME.github.io/REPO-NAME/index.html'; // <- exakt so in Spotify Dashboard eintragen
+    const scopes = 'user-top-read';
+
+    const hash = window.location.hash;
+    let token = new URLSearchParams(hash.substring(1)).get('access_token');
+
+    if (token) {
+      document.getElementById('content').innerHTML = '<ul id="trackList">Lade...</ul>';
+      fetchTopTracks();
+    }
+
+    document.getElementById('login').addEventListener('click', () => {
+      const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}` +
+                      `&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                      `&scope=${encodeURIComponent(scopes)}`;
+      window.location = authUrl;
+    });
+
+    async function fetchWebApi(endpoint, method = 'GET', body = null) {
+      const res = await fetch(`https://api.spotify.com/${endpoint}`, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: body ? JSON.stringify(body) : null
+      });
+      return await res.json();
+    }
+
+    async function getTopTracks() {
+      return (await fetchWebApi('v1/me/top/tracks?time_range=long_term&limit=10')).items;
+    }
+
+    async function fetchTopTracks() {
+      const trackList = document.getElementById('trackList');
+      try {
+        const tracks = await getTopTracks();
+        trackList.innerHTML = '';
+        tracks.forEach(({ name, artists }, index) => {
+          const artistNames = artists.map(a => a.name).join(', ');
+          const li = document.createElement('li');
+          li.textContent = `${index + 1}. ${name} von ${artistNames}`;
+          trackList.appendChild(li);
+        });
+      } catch (error) {
+        trackList.innerHTML = '<li>Fehler beim Laden der Tracks.</li>';
+        console.error(error);
+      }
+    }
+  </script>
+</body>
+</html>
