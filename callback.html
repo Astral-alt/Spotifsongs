@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Spotify Callback</title>
+</head>
+<body>
+  <h1>Deine Top 10 Tracks</h1>
+  <ul id="tracks">Lade...</ul>
+
+  <script>
+    const clientId = 'DEINE_CLIENT_ID_HIER';
+    const redirectUri = 'https://astral-alt.github.io/Spotifsongs/callback.html';
+
+    async function fetchAccessToken(code) {
+      const codeVerifier = localStorage.getItem('code_verifier');
+
+      const body = new URLSearchParams({
+        client_id: clientId,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier
+      });
+
+      const response = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body
+      });
+
+      return await response.json();
+    }
+
+    async function getTopTracks(token) {
+      const res = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=10', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return (await res.json()).items;
+    }
+
+    async function main() {
+      const code = new URLSearchParams(window.location.search).get('code');
+      if (!code) return document.getElementById('tracks').textContent = 'Kein Code erhalten.';
+
+      const tokenData = await fetchAccessToken(code);
+      const tracks = await getTopTracks(tokenData.access_token);
+
+      const list = document.getElementById('tracks');
+      list.innerHTML = '';
+      tracks.forEach((track, i) => {
+        const li = document.createElement('li');
+        li.textContent = `${i + 1}. ${track.name} von ${track.artists.map(a => a.name).join(', ')}`;
+        list.appendChild(li);
+      });
+    }
+
+    main();
+  </script>
+</body>
+</html>
