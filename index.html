@@ -40,27 +40,88 @@
   </div>
 
   <script>
-    const clientId = '70a2baab0a314a94a7489048e10cf0b1'; // <- Ersetze mit deiner echten Client ID
-    const redirectUri = 'https://astral-alt.github.io/Spotifsongs/'; // <- exakt so in Spotify Dashboard eintragen
+    const clientId = '70a2baab0a314a94a7489048e10cf0b1';
+    const redirectUri = 'https://astral-alt.github.io/Spotifsongs/';
     const scopes = 'user-top-read';
 
-    const hash = window.location.hash;
-    let token = new URLSearchParams(hash.substring(1)).get('access_token');
-
-
-    if (token) {
-      document.getElementById('content').innerHTML = '<ul id="trackList">Lade...</ul>';
-      fetchTopTracks();
+    // PKCE Helper Functions
+    function generateRandomString(length) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let result = '';
+      for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
     }
 
-    document.getElementById('login').addEventListener('click', () => {
-      const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}` +
-                      `&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}` +
-                      `&scope=${encodeURIComponent(scopes)}`;
+    async function generateCodeChallenge(codeVerifier) {
+      const data = new TextEncoder().encode(codeVerifier);
+      const digest = await crypto.subtle.digest('SHA-256', data);
+      return btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/=/g, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_');
+    }
+
+    document.getElementById('login').addEventListener('click', async () => {
+      const codeVerifier = generateRandomString(128);
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
+
+      localStorage.setItem('code_verifier', codeVerifier);
+
+      const authUrl = `https://accounts.spotify.com/authorize` +
+        `?response_type=code` +
+        `&client_id=${clientId}` +
+        `&scope=${encodeURIComponent(scopes)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&code_challenge_method=S256` +
+        `&code_challenge=${codeChallenge}`;
+
       window.location = authUrl;
     });
 
-    async function fetchWebApi(endpoint, method = 'GET', body = null) {
+    async function fetchAccessToken(code) {
+      const codeVerifier = localStorage.getItem('code_verifier');
+
+      const body = new URLSearchParams({
+        client_id: clientId,
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier
+      });
+
+      const response = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: body.toString()
+      });
+
+      const data = await response.json();
+      return data.access_token;
+    }
+
+    // Hauptlogik nach Redirect
+    (async () => {
+      const code = new URLSearchParams(window.location.search).get('code');
+      if (code) {
+        try {
+          const token = await fetchAccessToken(code);
+          localStorage.setItem('access_token', token);
+          history.replaceState(null, '', window.location.pathname); // clean URL
+          await fetchTopTracks(token);
+        } catch (error) {
+          console.error('Token-Fehler:', error);
+        }
+      } else {
+        const token = localStorage.getItem('access_token');
+        if (token) fetchTopTracks(token);
+      }
+    })();
+
+    async function fetchWebApi(endpoint, method = 'GET', body = null, token) {
       const res = await fetch(`https://api.spotify.com/${endpoint}`, {
         method,
         headers: {
@@ -72,14 +133,18 @@
       return await res.json();
     }
 
-    async function getTopTracks() {
-      return (await fetchWebApi('v1/me/top/tracks?time_range=long_term&limit=10')).items;
+    async function getTopTracks(token) {
+      return (await fetchWebApi('v1/me/top/tracks?time_range=long_term&limit=10', 'GET', null, token)).items;
     }
 
-    async function fetchTopTracks() {
-      const trackList = document.getElementById('trackList');
+    async function fetchTopTracks(token) {
+      const trackList = document.createElement('ul');
+      trackList.id = 'trackList';
+      document.getElementById('content').innerHTML = '';
+      document.getElementById('content').appendChild(trackList);
+
       try {
-        const tracks = await getTopTracks();
+        const tracks = await getTopTracks(token);
         trackList.innerHTML = '';
         tracks.forEach(({ name, artists }, index) => {
           const artistNames = artists.map(a => a.name).join(', ');
@@ -95,7 +160,3 @@
   </script>
 </body>
 </html>
-
-</body>
-</html>
-
