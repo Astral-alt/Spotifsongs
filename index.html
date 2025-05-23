@@ -79,7 +79,7 @@
   <script>
     const clientId = '70a2baab0a314a94a7489048e10cf0b1';
     const redirectUri = 'https://astral-alt.github.io/Spotifsongs/';
-    const scopes = 'user-top-read';
+    const scopes = 'user-top-read'; //Berechtigungen
 
     // PKCE Helper Functions
     function generateRandomString(length) {
@@ -100,7 +100,7 @@
         .replace(/\//g, '_');
     }
 
-    // Initialize the login button
+    
     document.getElementById('login').addEventListener('click', async () => {
       try {
         const codeVerifier = generateRandomString(128);
