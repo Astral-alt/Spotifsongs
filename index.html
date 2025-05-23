@@ -22,6 +22,8 @@
       margin: 0.5rem 0;
       padding: 1rem;
       border-radius: 8px;
+      display: flex;
+      align-items: center;
     }
     #login {
       background-color: #1DB954;
@@ -30,6 +32,29 @@
       border: none;
       border-radius: 20px;
       cursor: pointer;
+      font-weight: bold;
+    }
+    #logout {
+      background-color: #e74c3c;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .track-image {
+      width: 50px;
+      height: 50px;
+      margin-right: 15px;
+      border-radius: 4px;
+    }
+    .loading {
+      color: #1DB954;
+      font-style: italic;
+    }
+    .error {
+      color: #e74c3c;
     }
   </style>
 </head>
@@ -46,7 +71,7 @@
 
     // PKCE Helper Functions
     function generateRandomString(length) {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
       let result = '';
       for (let i = 0; i < length; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -63,21 +88,27 @@
         .replace(/\//g, '_');
     }
 
+    // Initialize the login button
     document.getElementById('login').addEventListener('click', async () => {
-      const codeVerifier = generateRandomString(128);
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
+      try {
+        const codeVerifier = generateRandomString(128);
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-      localStorage.setItem('code_verifier', codeVerifier);
+        localStorage.setItem('code_verifier', codeVerifier);
 
-      const authUrl = `https://accounts.spotify.com/authorize` +
-        `?response_type=code` +
-        `&client_id=${clientId}` +
-        `&scope=${encodeURIComponent(scopes)}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&code_challenge_method=S256` +
-        `&code_challenge=${codeChallenge}`;
+        const authUrl = new URL('https://accounts.spotify.com/authorize');
+        authUrl.searchParams.append('response_type', 'code');
+        authUrl.searchParams.append('client_id', clientId);
+        authUrl.searchParams.append('scope', scopes);
+        authUrl.searchParams.append('redirect_uri', redirectUri);
+        authUrl.searchParams.append('code_challenge_method', 'S256');
+        authUrl.searchParams.append('code_challenge', codeChallenge);
 
-      window.location = authUrl;
+        window.location.href = authUrl.toString();
+      } catch (error) {
+        console.error('Login error:', error);
+        showError('Fehler beim Login-Vorgang');
+      }
     });
 
     async function fetchAccessToken(code) {
@@ -96,33 +127,88 @@
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: body.toString()
+        body: body
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
       return data.access_token;
     }
 
-    // Hauptlogik nach Redirect
-    (async () => {
-      const code = new URLSearchParams(window.location.search).get('code');
+    // Show loading state
+    function showLoading() {
+      const content = document.getElementById('content');
+      content.innerHTML = '<p class="loading">Lade Daten...</p>';
+    }
+
+    // Show error message
+    function showError(message) {
+      const content = document.getElementById('content');
+      content.innerHTML = `<p class="error">${message}</p><button id="login">Erneut versuchen</button>`;
+      document.getElementById('login').addEventListener('click', () => window.location.reload());
+    }
+
+    // Create logout button
+    function createLogoutButton() {
+      const logoutBtn = document.createElement('button');
+      logoutBtn.id = 'logout';
+      logoutBtn.textContent = 'Ausloggen';
+      logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('code_verifier');
+        window.location.href = redirectUri;
+      });
+      return logoutBtn;
+    }
+
+    // Main logic after redirect
+    (async function init() {
+      // Check for errors in the URL hash first
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const error = hashParams.get('error');
+      
+      if (error) {
+        showError(`Authentifizierungsfehler: ${error}`);
+        return;
+      }
+
+      // Check for authorization code in query parameters
+      const queryParams = new URLSearchParams(window.location.search);
+      const code = queryParams.get('code');
+
       if (code) {
+        showLoading();
         try {
           const token = await fetchAccessToken(code);
           localStorage.setItem('access_token', token);
-          history.replaceState(null, '', window.location.pathname); // clean URL
+          
+          // Clean the URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
           await fetchTopTracks(token);
         } catch (error) {
-          console.error('Token-Fehler:', error);
+          console.error('Token error:', error);
+          showError('Fehler beim Abrufen des Zugriffstokens');
         }
       } else {
+        // Check for existing token
         const token = localStorage.getItem('access_token');
-        if (token) fetchTopTracks(token);
+        if (token) {
+          try {
+            await fetchTopTracks(token);
+          } catch (error) {
+            console.error('API error:', error);
+            showError('Fehler beim Laden der Tracks');
+          }
+        }
       }
     })();
 
     async function fetchWebApi(endpoint, method = 'GET', body = null, token) {
-      const res = await fetch(`https://api.spotify.com/${endpoint}`, {
+      const res = await fetch(`https://api.spotify.com/v1/${endpoint}`, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -130,31 +216,72 @@
         },
         body: body ? JSON.stringify(body) : null
       });
+      
+      if (!res.ok) {
+        throw new Error(`API request failed with status ${res.status}`);
+      }
+      
       return await res.json();
     }
 
     async function getTopTracks(token) {
-      return (await fetchWebApi('v1/me/top/tracks?time_range=long_term&limit=10', 'GET', null, token)).items;
+      return (await fetchWebApi('me/top/tracks?time_range=long_term&limit=10', 'GET', null, token)).items;
     }
 
     async function fetchTopTracks(token) {
+      showLoading();
+      const content = document.getElementById('content');
       const trackList = document.createElement('ul');
       trackList.id = 'trackList';
-      document.getElementById('content').innerHTML = '';
-      document.getElementById('content').appendChild(trackList);
-
+      
       try {
         const tracks = await getTopTracks(token);
-        trackList.innerHTML = '';
-        tracks.forEach(({ name, artists }, index) => {
-          const artistNames = artists.map(a => a.name).join(', ');
+        
+        if (tracks.length === 0) {
+          content.innerHTML = '<p>Keine Tracks gefunden. Du musst mehr Musik hören!</p>';
+          return;
+        }
+        
+        content.innerHTML = '';
+        content.appendChild(trackList);
+        
+        // Add logout button
+        content.appendChild(createLogoutButton());
+        
+        tracks.forEach((track, index) => {
           const li = document.createElement('li');
-          li.textContent = `${index + 1}. ${name} von ${artistNames}`;
+          
+          // Add album image
+          if (track.album.images.length > 0) {
+            const img = document.createElement('img');
+            img.src = track.album.images[track.album.images.length - 1].url;
+            img.className = 'track-image';
+            img.alt = `${track.name} Album Cover`;
+            li.appendChild(img);
+          }
+          
+          // Create track info container
+          const trackInfo = document.createElement('div');
+          
+          // Track name and position
+          const trackName = document.createElement('span');
+          trackName.textContent = `${index + 1}. ${track.name}`;
+          trackName.style.fontWeight = 'bold';
+          trackInfo.appendChild(trackName);
+          
+          // Artists
+          const artists = document.createElement('p');
+          artists.textContent = `von ${track.artists.map(a => a.name).join(', ')}`;
+          artists.style.margin = '5px 0 0 0';
+          artists.style.color = '#aaa';
+          trackInfo.appendChild(artists);
+          
+          li.appendChild(trackInfo);
           trackList.appendChild(li);
         });
       } catch (error) {
-        trackList.innerHTML = '<li>Fehler beim Laden der Tracks.</li>';
-        console.error(error);
+        console.error('Track loading error:', error);
+        showError('Fehler beim Laden der Tracks');
       }
     }
   </script>
