@@ -72,12 +72,23 @@
     .error {
       color: #e74c3c;
     }
+
+    #spotify-logo {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 40px;
+      height: 40px;
+      filter: brightness(0) invert(1); /* Macht das Logo weiß */
+      opacity: 0.8; /* Leichte Transparenz */
+      transition: opacity 0.3s;
+    }
     
   </style>
 </head>
 <body>
   
-  <img id="spotify-logo" src="https://astral-alt.github.io/Spotifsongs/spotlogo.png" alt="Spotify Logo">
+  <img id="spotify-logo" src="https://astral-alt.github.io/Spotifsongs/spotlogo.png" alt="Spotify Logo" >
   
   <h1>Deine Top 10 Spotify Songs</h1>
   
