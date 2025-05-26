@@ -277,6 +277,13 @@
         
         
         content.appendChild(createLogoutButton());
+
+
+// Ab hier den Playlist-Button hinzufügen
+const createPlaylistButton = document.createElement('button');
+// ...
+// (wie oben gezeigt)
+
         
         tracks.forEach((track, index) => {
           const li = document.createElement('li');
@@ -313,6 +320,42 @@
         console.error('Track loading error:', error);
         showError('Fehler beim Laden der Tracks');
       }
+      const createPlaylistButton = document.createElement('button');
+createPlaylistButton.textContent = 'Playlist erstellen';
+createPlaylistButton.style.backgroundColor = '#1DB954';
+createPlaylistButton.style.color = 'white';
+createPlaylistButton.style.padding = '10px 20px';
+createPlaylistButton.style.border = 'none';
+createPlaylistButton.style.borderRadius = '20px';
+createPlaylistButton.style.cursor = 'pointer';
+createPlaylistButton.style.marginLeft = '10px';
+
+createPlaylistButton.addEventListener('click', async () => {
+  try {
+    const userData = await fetchWebApi('me', 'GET', null, token);
+    const userId = userData.id;
+
+    const playlist = await fetchWebApi(`users/${userId}/playlists`, 'POST', {
+      name: 'Meine Top 10 Songs',
+      description: 'Automatisch erstellt mit der Spotifsongs-App',
+      public: false
+    }, token);
+
+    const trackUris = tracks.map(t => t.uri);
+
+    await fetchWebApi(`playlists/${playlist.id}/tracks`, 'POST', {
+      uris: trackUris
+    }, token);
+
+    alert('Playlist erfolgreich erstellt!');
+  } catch (err) {
+    console.error('Playlist-Erstellung fehlgeschlagen:', err);
+    alert('Fehler beim Erstellen der Playlist.');
+  }
+});
+
+content.appendChild(createPlaylistButton);
+
     }
   </script>
 </body>
