@@ -2,19 +2,16 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <!-- <img id="logo" src="https://astral-alt.github.io/Spotifsongs/splogo.jpg" alt="Spotify Logo" > */ -->
   <title>Top 10 Spotify Songs</title>
   <style>
-      body {
+    body {
       font-family: Arial, sans-serif;
       background-color: #121212;
       color: #fff;
       padding: 2rem;
-      
     }
     h1 {
       color: #1DB954;
-      container: center;
       text-align: center;
     }
     ul {
@@ -29,17 +26,15 @@
       display: flex;
       align-items: center;
     }
-    #content{
+    #content {
       max-width: 600px;
       margin: 0 auto;
       padding: 20px;
     }
-
-#trackList {
-  width: 100%;
-}
-    
-    #login {
+    #trackList {
+      width: 100%;
+    }
+    #login, #create-playlist {
       background-color: #1DB954;
       color: white;
       padding: 10px 20px;
@@ -47,8 +42,8 @@
       border-radius: 20px;
       cursor: pointer;
       font-weight: bold;
-      container: center;
-      text-align: center;
+      display: block;
+      margin: 10px auto;
     }
     #logout {
       background-color: #e74c3c;
@@ -57,7 +52,8 @@
       border: none;
       border-radius: 20px;
       cursor: pointer;
-      margin-left: 10px;
+      margin: 10px auto;
+      display: block;
     }
     .track-image {
       width: 50px;
@@ -72,25 +68,26 @@
     .error {
       color: #e74c3c;
     }
-
     #spotify-logo {
       position: absolute;
       top: 20px;
       left: 20px;
-      width: 100px;
+      width: 110px;
       height: 70px;
-      opacity: 0.8; /* Leichte Transparenz */
+      opacity: 0.8;
       transition: opacity 0.3s;
     }
-    
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
-  
-  <img id="spotify-logo" src="https://astral-alt.github.io/Spotifsongs/spotlogo.png" alt="Spotify Logo" >
-  
+  <img id="spotify-logo" src="https://astral-alt.github.io/Spotifsongs/spotlogo.png" alt="Spotify Logo">
   <h1>Deine Top 10 Spotify Songs</h1>
-  
   <div id="content">
     <button id="login">Mit Spotify einloggen</button>
   </div>
@@ -98,7 +95,7 @@
   <script>
     const clientId = '70a2baab0a314a94a7489048e10cf0b1';
     const redirectUri = 'https://astral-alt.github.io/Spotifsongs/';
-    const scopes = 'user-top-read'; //Berechtigungen
+    const scopes = 'user-top-read playlist-modify-public playlist-modify-private';
 
     // PKCE Autorisierung
     function generateRandomString(length) {
@@ -119,7 +116,6 @@
         .replace(/\//g, '_');
     }
 
-    
     document.getElementById('login').addEventListener('click', async () => {
       try {
         const codeVerifier = generateRandomString(128);
@@ -169,13 +165,11 @@
       return data.access_token;
     }
 
-    // Ladevorgang
     function showLoading() {
       const content = document.getElementById('content');
       content.innerHTML = '<p class="loading">Lade Daten...</p>';
     }
 
-    
     function showError(message) {
       const content = document.getElementById('content');
       content.innerHTML = `<p class="error">${message}</p><button id="login">Erneut versuchen</button>`;
@@ -193,49 +187,6 @@
       });
       return logoutBtn;
     }
-
-    
-    (async function init() {
-      
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const error = hashParams.get('error');
-      
-      if (error) {
-        showError(`Authentifizierungsfehler: ${error}`);
-        return;
-      }
-
-      // Autorisierung checken
-      const queryParams = new URLSearchParams(window.location.search);
-      const code = queryParams.get('code');
-
-      if (code) {
-        showLoading();
-        try {
-          const token = await fetchAccessToken(code);
-          localStorage.setItem('access_token', token);
-          
-          //Url leeren
-          window.history.replaceState({}, document.title, window.location.pathname);
-          
-          await fetchTopTracks(token);
-        } catch (error) {
-          console.error('Token error:', error);
-          showError('Fehler beim Abrufen des Zugriffstokens');
-        }
-      } else {
-        // Check for existing token
-        const token = localStorage.getItem('access_token');
-        if (token) {
-          try {
-            await fetchTopTracks(token);
-          } catch (error) {
-            console.error('API error:', error);
-            showError('Fehler beim Laden der Tracks');
-          }
-        }
-      }
-    })();
 
     async function fetchWebApi(endpoint, method = 'GET', body = null, token) {
       const res = await fetch(`https://api.spotify.com/v1/${endpoint}`, {
@@ -258,16 +209,42 @@
       return (await fetchWebApi('me/top/tracks?time_range=long_term&limit=10', 'GET', null, token)).items;
     }
 
+    async function createPlaylist(token, tracks) {
+      try {
+        // Benutzerdaten abrufen
+        const userData = await fetchWebApi('me', 'GET', null, token);
+        const userId = userData.id;
+
+        // Neue Playlist erstellen
+        const playlist = await fetchWebApi(`users/${userId}/playlists`, 'POST', {
+          name: 'Meine Top 10 Songs',
+          description: 'Automatisch erstellt mit der Spotifsongs-App',
+          public: false
+        }, token);
+
+        // Track-URIs sammeln
+        const trackUris = tracks.map(t => t.uri);
+
+        // Tracks zur Playlist hinzufügen
+        await fetchWebApi(`playlists/${playlist.id}/tracks`, 'POST', {
+          uris: trackUris
+        }, token);
+
+        return playlist;
+      } catch (error) {
+        console.error('Fehler beim Erstellen der Playlist:', error);
+        throw error;
+      }
+    }
+
     async function fetchTopTracks(token) {
       showLoading();
       const content = document.getElementById('content');
       const trackList = document.createElement('ul');
       trackList.id = 'trackList';
-      //IIIIIII
-      let tracks;
       
       try {
-         tracks = await getTopTracks(token);
+        const tracks = await getTopTracks(token);
         
         if (tracks.length === 0) {
           content.innerHTML = '<p>Keine Tracks gefunden. Du musst mehr Musik hören!</p>';
@@ -277,19 +254,35 @@
         content.innerHTML = '';
         content.appendChild(trackList);
         
+        // Button-Container erstellen
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'button-container';
         
-        content.appendChild(createLogoutButton());
-
-
-// Ab hier den Playlist-Button hinzufügen
-const createPlaylistButton = document.createElement('button');
-// ...
-// (wie oben gezeigt)
-
+        // Playlist-Button erstellen
+        const playlistButton = document.createElement('button');
+        playlistButton.id = 'create-playlist';
+        playlistButton.textContent = 'Playlist erstellen';
+        playlistButton.addEventListener('click', async () => {
+          try {
+            playlistButton.disabled = true;
+            playlistButton.textContent = 'Wird erstellt...';
+            const playlist = await createPlaylist(token, tracks);
+            alert(`Playlist "${playlist.name}" erfolgreich erstellt!`);
+            playlistButton.textContent = 'Playlist erstellt!';
+          } catch (error) {
+            alert('Fehler beim Erstellen der Playlist');
+            playlistButton.textContent = 'Erneut versuchen';
+            playlistButton.disabled = false;
+          }
+        });
         
+        buttonContainer.appendChild(playlistButton);
+        buttonContainer.appendChild(createLogoutButton());
+        content.appendChild(buttonContainer);
+        
+        // Tracks anzeigen
         tracks.forEach((track, index) => {
           const li = document.createElement('li');
-          
           
           if (track.album.images.length > 0) {
             const img = document.createElement('img');
@@ -299,15 +292,12 @@ const createPlaylistButton = document.createElement('button');
             li.appendChild(img);
           }
           
-          
           const trackInfo = document.createElement('div');
-          
           
           const trackName = document.createElement('span');
           trackName.textContent = `${index + 1}. ${track.name}`;
           trackName.style.fontWeight = 'bold';
           trackInfo.appendChild(trackName);
-          
           
           const artists = document.createElement('p');
           artists.textContent = `von ${track.artists.map(a => a.name).join(', ')}`;
@@ -322,43 +312,43 @@ const createPlaylistButton = document.createElement('button');
         console.error('Track loading error:', error);
         showError('Fehler beim Laden der Tracks');
       }
-      const createPlaylistButton = document.createElement('button');
-createPlaylistButton.textContent = 'Playlist erstellen';
-createPlaylistButton.style.backgroundColor = '#1DB954';
-createPlaylistButton.style.color = 'white';
-createPlaylistButton.style.padding = '10px 20px';
-createPlaylistButton.style.border = 'none';
-createPlaylistButton.style.borderRadius = '20px';
-createPlaylistButton.style.cursor = 'pointer';
-createPlaylistButton.style.marginLeft = '10px';
-
-createPlaylistButton.addEventListener('click', async () => {
-  try {
-    const userData = await fetchWebApi('me', 'GET', null, token);
-    const userId = userData.id;
-
-    const playlist = await fetchWebApi(`users/${userId}/playlists`, 'POST', {
-      name: 'Meine Top 10 Songs',
-      description: 'Automatisch erstellt mit der Spotifsongs-App',
-      public: false
-    }, token);
-
-    const trackUris = tracks.map(t => t.uri);
-
-    await fetchWebApi(`playlists/${playlist.id}/tracks`, 'POST', {
-      uris: trackUris
-    }, token);
-
-    alert('Playlist erfolgreich erstellt!');
-  } catch (err) {
-    console.error('Playlist-Erstellung fehlgeschlagen:', err);
-    alert('Fehler beim Erstellen der Playlist.');
-  }
-});
-
-content.appendChild(createPlaylistButton);
-
     }
+
+    (async function init() {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const error = hashParams.get('error');
+      
+      if (error) {
+        showError(`Authentifizierungsfehler: ${error}`);
+        return;
+      }
+
+      const queryParams = new URLSearchParams(window.location.search);
+      const code = queryParams.get('code');
+
+      if (code) {
+        showLoading();
+        try {
+          const token = await fetchAccessToken(code);
+          localStorage.setItem('access_token', token);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await fetchTopTracks(token);
+        } catch (error) {
+          console.error('Token error:', error);
+          showError('Fehler beim Abrufen des Zugriffstokens');
+        }
+      } else {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          try {
+            await fetchTopTracks(token);
+          } catch (error) {
+            console.error('API error:', error);
+            showError('Fehler beim Laden der Tracks');
+          }
+        }
+      }
+    })();
   </script>
 </body>
 </html>
