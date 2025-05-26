@@ -263,9 +263,11 @@
       const content = document.getElementById('content');
       const trackList = document.createElement('ul');
       trackList.id = 'trackList';
+      //IIIIIII
+      let tracks;
       
       try {
-        const tracks = await getTopTracks(token);
+         tracks = await getTopTracks(token);
         
         if (tracks.length === 0) {
           content.innerHTML = '<p>Keine Tracks gefunden. Du musst mehr Musik hören!</p>';
