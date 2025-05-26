@@ -85,7 +85,7 @@
     const redirectUri = 'https://astral-alt.github.io/Spotifsongs/';
     const scopes = 'user-top-read'; //Berechtigungen
 
-    // PKCE Helper Functions
+    // PKCE Autorisierung
     function generateRandomString(length) {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
       let result = '';
@@ -154,20 +154,19 @@
       return data.access_token;
     }
 
-    // Show loading state
+    // Ladevorgang
     function showLoading() {
       const content = document.getElementById('content');
       content.innerHTML = '<p class="loading">Lade Daten...</p>';
     }
 
-    // Show error message
+    
     function showError(message) {
       const content = document.getElementById('content');
       content.innerHTML = `<p class="error">${message}</p><button id="login">Erneut versuchen</button>`;
       document.getElementById('login').addEventListener('click', () => window.location.reload());
     }
 
-    // Create logout button
     function createLogoutButton() {
       const logoutBtn = document.createElement('button');
       logoutBtn.id = 'logout';
@@ -180,9 +179,9 @@
       return logoutBtn;
     }
 
-    // Main logic after redirect
+    
     (async function init() {
-      // Check for errors in the URL hash first
+      
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const error = hashParams.get('error');
       
@@ -191,7 +190,7 @@
         return;
       }
 
-      // Check for authorization code in query parameters
+      // Autorisierung checken
       const queryParams = new URLSearchParams(window.location.search);
       const code = queryParams.get('code');
 
@@ -201,7 +200,7 @@
           const token = await fetchAccessToken(code);
           localStorage.setItem('access_token', token);
           
-          // Clean the URL
+          //Url leeren
           window.history.replaceState({}, document.title, window.location.pathname);
           
           await fetchTopTracks(token);
@@ -261,13 +260,13 @@
         content.innerHTML = '';
         content.appendChild(trackList);
         
-        // Add logout button
+        
         content.appendChild(createLogoutButton());
         
         tracks.forEach((track, index) => {
           const li = document.createElement('li');
           
-          // Add album image
+          
           if (track.album.images.length > 0) {
             const img = document.createElement('img');
             img.src = track.album.images[track.album.images.length - 1].url;
@@ -276,16 +275,16 @@
             li.appendChild(img);
           }
           
-          // Create track info container
+          
           const trackInfo = document.createElement('div');
           
-          // Track name and position
+          
           const trackName = document.createElement('span');
           trackName.textContent = `${index + 1}. ${track.name}`;
           trackName.style.fontWeight = 'bold';
           trackInfo.appendChild(trackName);
           
-          // Artists
+          
           const artists = document.createElement('p');
           artists.textContent = `von ${track.artists.map(a => a.name).join(', ')}`;
           artists.style.margin = '5px 0 0 0';
