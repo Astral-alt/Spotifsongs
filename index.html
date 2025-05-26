@@ -86,7 +86,7 @@
   </style>
 </head>
 <body>
-  <img id="spotify-logo" src="https://astral-alt.github.io/Spotifsongs/spotlogo.png" alt="Spotify Logo">
+  <img id="spotify-logo" src="https://astral-alt.github.io/Spotifsongs/spotlogo.png" alt="Spotify Logo" >
   <h1>Deine Top 10 Spotify Songs</h1>
   <div id="content">
     <button id="login">Mit Spotify einloggen</button>
@@ -186,6 +186,12 @@
         window.location.href = redirectUri;
       });
       return logoutBtn;
+    }
+
+    function logologout(){
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('code_verifier');
+      window.location.href = redirectUri;
     }
 
     async function fetchWebApi(endpoint, method = 'GET', body = null, token) {
