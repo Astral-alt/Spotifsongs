@@ -110,16 +110,18 @@ body::before {
   </style>
 </head>
 <body>
+
+  <video autoplay muted loop id="background-video">
+    <source src="https://www.pexels.com/de-de/video/ein-sich-drehender-plattenspieler-der-eine-schallplatte-spielt-3116510/" type="video/mp4">
+    Ihr Browser unterstützt das Video-Tag nicht.
+  </video>
+  
   <img id="spotify-logo" src="https://astral-alt.github.io/Spotifsongs/spotlogo.png" alt="Spotify Logo" onclick="logologout()">
   <h1>Deine Top 10 Spotify Songs</h1>
   <div id="content">
     <button id="login">Mit Spotify einloggen</button>
   </div>
-  <!-- Video-Hintergrund -->
-  <video autoplay muted loop id="background-video">
-    <source src="https://www.pexels.com/de-de/video/ein-sich-drehender-plattenspieler-der-eine-schallplatte-spielt-3116510/" type="video/mp4">
-    Ihr Browser unterstützt das Video-Tag nicht.
-  </video>
+ 
 
   <script>
     const clientId = '70a2baab0a314a94a7489048e10cf0b1';
