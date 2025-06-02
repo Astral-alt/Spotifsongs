@@ -83,6 +83,30 @@
       gap: 10px;
       margin-top: 20px;
     }
+      /* Video-Hintergrund */
+#background-video {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 50vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: -1;
+}
+
+/* Transparenter Übergang */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 50vw;
+  width: 50vw;
+  height: 100vh;
+  background: linear-gradient(to left, rgba(18, 18, 18, 0.8), rgba(18, 18, 18, 0));
+  z-index: 0;
+}
+
+    
   </style>
 </head>
 <body>
@@ -91,6 +115,11 @@
   <div id="content">
     <button id="login">Mit Spotify einloggen</button>
   </div>
+  <!-- Video-Hintergrund -->
+  <video autoplay muted loop id="background-video">
+    <source src="https://www.pexels.com/de-de/video/ein-sich-drehender-plattenspieler-der-eine-schallplatte-spielt-3116510/" type="video/mp4">
+    Ihr Browser unterstützt das Video-Tag nicht.
+  </video>
 
   <script>
     const clientId = '70a2baab0a314a94a7489048e10cf0b1';
