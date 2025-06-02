@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html>
 <head>
   <meta charset="UTF-8">
   <title>Top 10 Spotify Songs</title>
@@ -295,8 +295,8 @@
             playlistButton.disabled = true;
             playlistButton.textContent = 'Wird erstellt...';
             const playlist = await createPlaylist(token, tracks);
-            alert(`Playlist "${playlist.name}" erfolgreich erstellt!`);
-            playlistButton.textContent = 'Playlist erstellt!';
+            alert(`Playlist "${playlist.name}" erfolgreich erstellt`);
+            playlistButton.textContent = 'Playlist erstellt';
           } catch (error) {
             alert('Fehler beim Erstellen der Playlist');
             playlistButton.textContent = 'Erneut versuchen';
